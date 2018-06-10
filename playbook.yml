@@ -1,0 +1,76 @@
+---
+- hosts: wildfly
+  remote_user: panchoa
+
+  handlers:
+    - name: rechargement des services wildfly
+      service: name=wildfly state=reloaded enabled=yes
+
+  tasks:
+    - name: installation de openjdk
+      package:
+        name: openjdk-8-jdk-headless
+        state: present
+
+    - name: ajout de l'utilisateur wildfly
+      user:
+        name: wildfly
+        state: present
+
+    - name: creation du dossier /opt/wildfly
+      file:
+        path: /opt/wildfly
+        state: directory
+        owner: wildfly
+        group: wildfly
+
+    - name: telechargement de wildfly
+      get_url:
+        url: http://download.jboss.org/wildfly/11.0.0.Final/wildfly-11.0.0.Final.tar.gz
+        dest: /opt/
+
+    - name: dezippage de l'archive
+      unarchive:
+        src: wildfly-11.0.0.Final.tar.gz
+        dest: /opt/
+
+    - name: deplacement des fichiers dans le bon dossier
+      command: mv /opt/wildfly-11.0.0.Final/* /opt/wildfly/
+
+    - name: attribution des droits a l'utilisateur wildfly
+      file:
+        dest: /opt/wildfly
+        owner: wildfly
+        group: wildlfy
+        mode: u=rwX,g=rX,o=rX
+        recurse: yes
+
+    - name: creation du dossier /etc/wildfly
+      file:
+        path: /etc/wildfly
+        state: directory
+        owner: wildfly
+        group: wildfly
+
+    - name: copie du fichier conf
+      copy:
+        src: /opt/wildfly/docs/contrib/scripts/systemd/wildfly.conf
+        dest: /etc/wildfly/
+
+    - name: copie du fichier service
+      copy:
+        src: /opt/wildfly/docs/contrib/scripts/systemd/wildfly.service
+        dest: /etc/wildfly/
+
+    - name: copie du fichier launch
+      copy:
+        src: /opt/wildfly/docs/contrib/scripts/systemd/launch.sh
+        dest: /etc/wildfly
+
+    - name: demarrage de wildfly au lancement
+      become: yes
+      command: systemctl enable wildfly
+
+    - name: rechargement du daemon
+      become: yes
+      command: systemctl daemon-reload
